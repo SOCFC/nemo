@@ -194,7 +194,7 @@ if __name__ == '__main__':
         # print("... loaded input catalog (took %.3f sec ; rank = %d)" % (t1-t0, config.rank))
 
     # Optionally override the fiducial cosmology (only useful for cluster sims)
-    keywords=['OM0', 'OB0', 'H0', 'SIGMA8', 'NS']
+    keywords=['OM0', 'OB0', 'H0', 'SIGMA8', 'NS', 'TRANSFER_FUNCTION', 'M_NU']
     keyCount=0
     for key in keywords:
         if key in tab.meta.keys():
@@ -215,9 +215,8 @@ if __name__ == '__main__':
                                  m_nu = tab.meta['M_NU'],
                                  mass_split = mass_split)
     else:
-        if rank == 0:
-            print(">>> Using fiducial cosmology")
-        cosmoModel=signals.fiducialCosmoModel
+        raise Exception('Not all cosmological parameters provided in input table. Need OM0, OB0, H0, SIGMA8, NS, '
+                        'TRANSFER_FUNCTION, M_NU')
 
     # Optional signal scaling (useful for diff alpha sims)
     if 'y_c' in tab.keys():
