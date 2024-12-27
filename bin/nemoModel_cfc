@@ -10,7 +10,6 @@ import os
 import sys
 import numpy as np
 import astropy.table as atpy
-import astropy.io.fits as pyfits
 from astLib import *
 import nemo
 from nemo import startUp, maps, catalogs, signals
@@ -20,6 +19,10 @@ import time
 on_rtd=os.environ.get('READTHEDOCS', None)
 if on_rtd is None:
     import pyccl as ccl
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 #------------------------------------------------------------------------------------------------------------
 def makeParser():
@@ -116,13 +119,16 @@ if __name__ == '__main__':
 
     areaMask, wcs=maps.chunkLoadMask(args.maskFileName)
     shape=areaMask.shape
+    logger.info('Read mask from {}.'.format(args.maskFileName))
     del areaMask
 
     baseDir, fileName=os.path.split(args.outputFileName)
     if baseDir != '':
         os.makedirs(baseDir, exist_ok = True)
+        logger.info('Created basedir {}.'.format(baseDir))
 
     if args.MPIEnabled == True:
+        logger.info('Running with MPI.')
         from mpi4py import MPI
         # This is needed to get MPI to abort if one process crashes (due to mpi4py error handling)
         # If this part is disabled, we get nice exceptions, but the program will never finish if a process dies
@@ -140,6 +146,7 @@ if __name__ == '__main__':
         if size == 1:
             raise Exception("If you want to use MPI, run with e.g., mpiexec -np 4 nemoModel ... -M")
     else:
+        logger.info('Running without MPI.')
         rank=0
         comm=None
         size=1
@@ -167,6 +174,8 @@ if __name__ == '__main__':
                 valid=sigma > 1e-7
                 sigma[valid]=np.sqrt(1/sigma[valid])
                 addNoise=sigma
+        logger.info('Noise model: {}.'.format(noiseMode))
+        logger.info('AddNoise = {}.'.format(addNoise))
     else:
         addNoise=None
         noiseMode=None
@@ -191,7 +200,7 @@ if __name__ == '__main__':
         t0=time.time()
         tab=atpy.Table().read(args.catalog)
         t1=time.time()
-        # print("... loaded input catalog (took %.3f sec ; rank = %d)" % (t1-t0, config.rank))
+        logger.info('Read catalog from {}.'.format(args.catalog))
 
     # Optionally override the fiducial cosmology (only useful for cluster sims)
     keywords=['OM0', 'OB0', 'H0', 'SIGMA8', 'NS', 'TRANSFER_FUNCTION', 'M_NU']
@@ -206,6 +215,7 @@ if __name__ == '__main__':
         mass_split = 'normal'
         if tab.meta['M_NU'] != 0.0 and tab.meta['N_NU'] == 1:
             mass_split = 'single'
+
         cosmoModel=ccl.Cosmology(Omega_c = tab.meta['OM0']-tab.meta['OB0'],
                                  Omega_b = tab.meta['OB0'],
                                  h = 0.01*tab.meta['H0'],
@@ -214,6 +224,9 @@ if __name__ == '__main__':
                                  transfer_function = tab.meta['TRANSFER_FUNCTION'],
                                  m_nu = tab.meta['M_NU'],
                                  mass_split = mass_split)
+
+        logger.info('Using CCL cosmology with {}.'.format(cosmoModel))
+
     else:
         raise Exception('Not all cosmological parameters provided in input table. Need OM0, OB0, H0, SIGMA8, NS, '
                         'TRANSFER_FUNCTION, M_NU')
@@ -236,10 +249,24 @@ if __name__ == '__main__':
     if rank == 0:
         print(">>> Building models ...")
     t0=time.time()
+
+    GNFW_dict = {
+                 'P0': tab.meta['P0_GNFW'], # Careful P0 in nemo is defined without h70 (but doesn't matter as gets renormalized anyway)
+                 'c500': tab.meta['C500_GNFW'],
+                 'gamma': tab.meta['GAMMA_GNFW'],
+                 'alpha': tab.meta['ALPHA_GNFW'],
+                 'beta':  tab.meta['BETA_GNFW'],
+                 'tol': 1e-7, # taken from default
+                 'npts': 100 # taken from default
+                 }
+    logger.info('Painting {} clusters with {}.'.format(args.profile, GNFW_dict))
+    
     modelImage=maps.makeModelImage(shape, wcs, tab, args.beamFileName,
                                    obsFreqGHz = args.obsFreqGHz,
                                    TCMBAlpha = args.TCMBAlpha,
-                                   profile = args.profile, cosmoModel = cosmoModel,
+                                   profile = args.profile,
+                                   cosmoModel = cosmoModel,
+                                   GNFWParams=GNFW_dict,
                                    reportTimingInfo = False)
     t1=time.time()
     print("... rank %d image complete (took %.3f sec)" % (rank, t1-t0))
@@ -267,13 +294,16 @@ if __name__ == '__main__':
             d=modelImage
         # Optionally add CMB
         if args.addCMB == True:
+            logger.info('Adding CMB map.')
             # Save tSZ-only map for debugging
             astImages.saveFITS(args.outputFileName.replace(".fits", "_signalOnly.fits"), d, wcs)
+            logger.info('Written tSZ-only map to {}.'.format(args.outputFileName.replace(".fits", "_signalOnly.fits")))
             shape=(d.shape)
             # Split adding CMB and noise to enable more tests
             d=d+maps.simCMBMap(shape, wcs, noiseLevel = None, beam = args.beamFileName,
                                seed = args.seed)
             astImages.saveFITS(args.outputFileName.replace(".fits", "_signalAndCMB.fits"), d, wcs)
+            logger.info('Written tSZ+CMB map to {}.'.format(args.outputFileName.replace(".fits", "_signalAndCMB.fits")))
             # Support trimming of inv var map, if we have one that doesn't match area mask
             # NOTE: As it's noise, we don't actually care about matching RA, dec coords strictly
             # So we don't worry about +/-1 pixel offsets here
@@ -301,10 +331,14 @@ if __name__ == '__main__':
                         raise Exception("Clipping ivar map to suitable size failed to converge quickly enough.")
                 addNoise=clip['data'][:d.shape[0], :d.shape[1]]
                 # raise Exception("Given inv var map does not have the same dimensions as the output sim map - should match the given mask")
-            d=d+maps.simNoiseMap(shape, addNoise, wcs = wcs, lKnee = args.lKnee, noiseMode = noiseMode)
+            noisemap = maps.simNoiseMap(shape, addNoise, wcs = wcs, lKnee = args.lKnee, noiseMode = noiseMode)
+            d=d+noisemap
+            logger.info('Added noise map with sum {}.'.format(np.sum(noisemap)))
         # Optionally add another component (e.g., large scale noise, to start with)
         if args.addMap is not None:
+            logger.info('Adding additional map from {}.'.format(args.addMap))
             with pyfits.open(args.addMap) as img:
                 d=d+float(args.addMapScaling)*img[0].data
         astImages.saveFITS(args.outputFileName, d, wcs)
-        print("... finished")
+        logger.info('Written map to {}.'.format(args.outputFileName))
+        logger.info('Finished painting.')
