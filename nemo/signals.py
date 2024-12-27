@@ -388,11 +388,10 @@ def calcRDeltaMpc(z, MDelta, cosmoModel, delta = 500, wrt = 'critical'):
     if type(MDelta) == str:
         raise Exception("MDelta is a string - use, e.g., 1.0e+14 (not 1e14 or 1e+14)")
 
-    Ez=ccl.h_over_h0(cosmoModel, 1/(1+z))
     if wrt == 'critical':
-        wrtDensity=ccl.physical_constants.RHO_CRITICAL*(Ez*cosmoModel['h'])**2
+        wrtDensity=ccl.rho_x(cosmoModel, 1/(1+z), 'critical')
     elif wrt == 'mean':
-        wrtDensity=ccl.omega_x(cosmoModel, 1/(1+z), 'matter')*ccl.physical_constants.RHO_CRITICAL*(Ez*cosmoModel['h'])**2
+        wrtDensity=ccl.rho_x(cosmoModel, 1/(1+z), 'matter')
     else:
         raise Exception("wrt should be either 'critical' or 'mean'")
     RDeltaMpc=np.power((3*MDelta)/(4*np.pi*delta*wrtDensity), 1.0/3.0)
