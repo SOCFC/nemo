@@ -1624,7 +1624,8 @@ def estimateContamination(contamSimDict, imageDict, SNRKeys, label, diagnosticsD
 #------------------------------------------------------------------------------------------------------------
 def makeModelImage(shape, wcs, catalog, beamFileName, obsFreqGHz = None, GNFWParams = 'default',\
                    profile = 'A10', cosmoModel = None, applyPixelWindow = True, override = None,\
-                   validAreaSection = None, minSNR = -99, TCMBAlpha = 0, reportTimingInfo = False):
+                   validAreaSection = None, minSNR = -99, TCMBAlpha = 0, reportTimingInfo = False,\
+                   convolveWithBeam=True):
     """Make a map with the given dimensions (shape) and WCS, containing model clusters or point sources, 
     with properties as listed in the catalog. This can be used to either inject or subtract sources
     from real maps.
@@ -1710,9 +1711,13 @@ def makeModelImage(shape, wcs, catalog, beamFileName, obsFreqGHz = None, GNFWPar
 
     # Set initial max size in degrees from beam file (used for sources; clusters adjusted for each object)
     t0=time.time()
-    numFWHM=5.0
-    beam=signals.BeamProfile(beamFileName = beamFileName)
-    maxSizeDeg=(beam.FWHMArcmin*numFWHM)/60
+    if beamFileName is not None:
+        numFWHM=5.0
+        beam=signals.BeamProfile(beamFileName = beamFileName)
+        maxSizeDeg=(beam.FWHMArcmin*numFWHM)/60.0
+    else:
+        beam = None
+        maxSizeDeg = 5*3.0/60.0
     t1=time.time()
     if reportTimingInfo: print("makeModelImage - set up beam - took %.3f sec" % (t1-t0))
     
@@ -1740,7 +1745,7 @@ def makeModelImage(shape, wcs, catalog, beamFileName, obsFreqGHz = None, GNFWPar
             modelMap=makeClusterSignalMap(z, M500, modelMap.shape, wcs, RADeg = RAs,
                                           decDeg = decs, beam = beam,
                                           GNFWParams = GNFWParams, amplitude = y0ToInsert,
-                                          maxSizeDeg = maxSizeDeg, convolveWithBeam = True,
+                                          maxSizeDeg = maxSizeDeg, convolveWithBeam = convolveWithBeam,
                                           cosmoModel = cosmoModel)
             if obsFreqGHz is not None:
                 modelMap=convertToDeltaT(modelMap, obsFrequencyGHz = obsFreqGHz,
@@ -1770,7 +1775,7 @@ def makeModelImage(shape, wcs, catalog, beamFileName, obsFreqGHz = None, GNFWPar
                 makeClusterSignalMap(z, M500, modelMap.shape, wcs, RADeg = row['RADeg'],
                                      decDeg = row['decDeg'], beam = beam,
                                      GNFWParams = GNFWParams, amplitude = y0ToInsert,
-                                     maxSizeDeg = maxSizeDeg, convolveWithBeam = True,
+                                     maxSizeDeg = maxSizeDeg, convolveWithBeam = convolveWithBeam,
                                      cosmoModel = cosmoModel, omap = modelMap,
                                      obsFrequencyGHz = obsFreqGHz, TCMBAlpha = TCMBAlpha)
     else:

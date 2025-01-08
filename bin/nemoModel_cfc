@@ -117,6 +117,15 @@ if __name__ == '__main__':
     if args.addMap is not None:
         assert(os.path.exists(args.addMap) == True)
 
+    if args.obsFreqGHz == -1:
+        args.obsFreqGHz = None
+
+    convolveWithBeam = True
+    if args.beamFileName == 'None':
+        logger.info('Not applying beam.')
+        args.beamFileName = None
+        convolveWithBeam = False
+
     areaMask, wcs=maps.chunkLoadMask(args.maskFileName)
     shape=areaMask.shape
     logger.info('Read mask from {}.'.format(args.maskFileName))
@@ -267,7 +276,8 @@ if __name__ == '__main__':
                                    profile = args.profile,
                                    cosmoModel = cosmoModel,
                                    GNFWParams=GNFW_dict,
-                                   reportTimingInfo = False)
+                                   reportTimingInfo = False,
+                                   convolveWithBeam=convolveWithBeam)
     t1=time.time()
     print("... rank %d image complete (took %.3f sec)" % (rank, t1-t0))
 
