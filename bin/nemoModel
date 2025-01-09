@@ -111,7 +111,10 @@ def makeParser():
 #------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
+    print("running nemoModel")
+    print("making parser")
     parser=makeParser()
+    print("parsing args")
     args=parser.parse_args()
     
     if args.noStrictMPIExceptions == True:
@@ -122,11 +125,14 @@ if __name__ == '__main__':
     if args.addMap is not None:
         assert(os.path.exists(args.addMap) == True)
 
+    print(f"loading mask from {args.maskFileName}")
     areaMask, wcs=maps.chunkLoadMask(args.maskFileName)
     shape=areaMask.shape
     del areaMask
+    print("mask loaded")
 
     baseDir, fileName=os.path.split(args.outputFileName)
+    
     if baseDir != '':
         os.makedirs(baseDir, exist_ok = True)
 
@@ -196,10 +202,11 @@ if __name__ == '__main__':
             else:
                 tab=atpy.Table(names = ('RADeg', 'decDeg'))
     else:
+        print("loading input catalog")
         t0=time.time()
         tab=atpy.Table().read(args.catalog)
         t1=time.time()
-        # print("... loaded input catalog (took %.3f sec ; rank = %d)" % (t1-t0, config.rank))
+        print("... loaded input catalog (took %.3f sec ; rank = %d)" % (t1-t0, config.rank))
 
     # Optionally override the fiducial cosmology (only useful for cluster sims)
     keywords=['OM0', 'OB0', 'H0', 'SIGMA8', 'NS']

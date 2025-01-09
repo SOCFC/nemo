@@ -24,6 +24,9 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+from classy_sz import Class
+
+
 #------------------------------------------------------------------------------------------------------------
 def makeParser():
     
@@ -44,6 +47,7 @@ def makeParser():
                         used by ACT.")
     parser.add_argument("outputFileName", help = "The name of the output file that will contain the sky\
                         model image.")
+    parser.add_argument("class_sz_settings", help = "class_sz_settings")
     parser.add_argument("-f", "--frequency-GHz", dest = "obsFreqGHz", type = float, default = 150.0,
                         help = "If the nemo catalog contains SZ-selected clusters, the SZ signal will be\
                         evaluted at the given frequency, ignoring relativistic effects (default: 150.0).")
@@ -210,6 +214,12 @@ if __name__ == '__main__':
         tab=atpy.Table().read(args.catalog)
         t1=time.time()
         logger.info('Read catalog from {}.'.format(args.catalog))
+    print(f"loading class_sz_settings from {args.class_sz_settings}")
+    args.class_sz_settings = os.path.dirname(args.class_sz_settings)
+    sys.path.append(args.class_sz_settings)
+    from class_sz_settings import class_sz_ym_params, common_class_sz_settings
+    all_class_sz_settings = class_sz_ym_params | common_class_sz_settings
+
 
     # Optionally override the fiducial cosmology (only useful for cluster sims)
     keywords=['OM0', 'OB0', 'H0', 'SIGMA8', 'NS', 'TRANSFER_FUNCTION', 'M_NU']
@@ -235,6 +245,32 @@ if __name__ == '__main__':
                                  mass_split = mass_split)
 
         logger.info('Using CCL cosmology with {}.'.format(cosmoModel))
+
+        class_sz_cosmo_params = {
+                                'Omega_b': tab.meta['OB0'],
+                                'Omega_cdm':  tab.meta['OM0']-tab.meta['OB0'],
+                                'H0': tab.meta['H0'],
+                                'sigma8': tab.meta['SIGMA8'],
+                                'tau_reio':  0.0561, ## doesnt matter
+                                'n_s': tab.meta['NS'],
+                                'm_ncdm': 0.06,
+                                }
+        all_class_sz_settings = all_class_sz_settings | class_sz_cosmo_params
+        print(all_class_sz_settings)
+        print("computing cosmology with class_sz")
+        cosmo = Class()
+        cosmo.set(all_class_sz_settings)
+        cosmo.compute_class_szfast()
+        print("cosmology computed")
+        print("test... computing da at z=0.1")
+        z=0.1
+        da = cosmo.angular_distance(z)
+        print("da: ",da)
+        print("computation with ccl:")
+        da_ccl = ccl.angular_diameter_distance(cosmoModel, 1/(1+z))
+        print("da_ccl/da :",da_ccl/da)
+        # exit(0)
+       
 
     else:
         raise Exception('Not all cosmological parameters provided in input table. Need OM0, OB0, H0, SIGMA8, NS, '
@@ -277,7 +313,8 @@ if __name__ == '__main__':
                                    cosmoModel = cosmoModel,
                                    GNFWParams=GNFW_dict,
                                    reportTimingInfo = False,
-                                   convolveWithBeam=convolveWithBeam)
+                                   convolveWithBeam=convolveWithBeam,
+                                   cosmo = cosmo)
     t1=time.time()
     print("... rank %d image complete (took %.3f sec)" % (rank, t1-t0))
 

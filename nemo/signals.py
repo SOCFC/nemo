@@ -40,7 +40,7 @@ np.random.seed()
 
 #------------------------------------------------------------------------------------------------------------
 # Global constants (we could move others here but then need to give chunky obvious names, not just e.g. h)
-TCMB=2.72548
+TCMB=2.7255 # match default in class_sz
 CLight=299792458 # m/s
 Mpc_in_cm=constants.pc.value*100*1e6
 MSun_in_g=constants.M_sun.value*1000
@@ -365,11 +365,12 @@ def fSZ(obsFrequencyGHz, TCMBAlpha = 0.0, z = None):
         assert(z >= 0)
         x=x*np.power(1+z, TCMBAlpha)
     fSZ=x*((np.exp(x)+1)/(np.exp(x)-1))-4.0
+    # print(f'Using Tcmb = {TCMB} in Nemo')
     
     return fSZ
 
 #------------------------------------------------------------------------------------------------------------
-def calcRDeltaMpc(z, MDelta, cosmoModel, delta = 500, wrt = 'critical'):
+def calcRDeltaMpc(z, MDelta, cosmoModel, delta = 500, wrt = 'critical', cosmo = None):
     """Calculate RDelta (e.g., R500c, R200m etc.) in Mpc, for a halo with the given mass and redshift.
     
     Args:
@@ -388,18 +389,33 @@ def calcRDeltaMpc(z, MDelta, cosmoModel, delta = 500, wrt = 'critical'):
     if type(MDelta) == str:
         raise Exception("MDelta is a string - use, e.g., 1.0e+14 (not 1e14 or 1e+14)")
 
+    # wrt = 'mean' # to test 
+
+    # if wrt == 'critical':
+    #     wrtDensity=ccl.rho_x(cosmoModel, 1/(1+z), 'critical')
+    # elif wrt == 'mean':
+    #     wrtDensity=ccl.rho_x(cosmoModel, 1/(1+z), 'matter')
+    # else:
+    #     raise Exception("wrt should be either 'critical' or 'mean'")
+    # RDeltaMpc=np.power((3*MDelta)/(4*np.pi*delta*wrtDensity), 1.0/3.0)
+
+    # print("ccl: ",RDeltaMpc)
     if wrt == 'critical':
-        wrtDensity=ccl.rho_x(cosmoModel, 1/(1+z), 'critical')
+        rd = cosmo.get_r_delta_of_m_delta_at_z(delta, MDelta*cosmo.h(), z)/cosmo.h()
     elif wrt == 'mean':
-        wrtDensity=ccl.rho_x(cosmoModel, 1/(1+z), 'matter')
+        delta *= 1./cosmo.get_delta_mean_from_delta_crit_at_z(1.,z) #  x Omz
+        rd = cosmo.get_r_delta_of_m_delta_at_z(delta, MDelta*cosmo.h(), z)/cosmo.h()
     else:
         raise Exception("wrt should be either 'critical' or 'mean'")
-    RDeltaMpc=np.power((3*MDelta)/(4*np.pi*delta*wrtDensity), 1.0/3.0)
+    # print("class_sz: ",rd)
+    RDeltaMpc = rd
+    # exit(0)
+
         
     return RDeltaMpc
 
 #------------------------------------------------------------------------------------------------------------
-def calcR500Mpc(z, M500c, cosmoModel):
+def calcR500Mpc(z, M500c, cosmoModel, cosmo = None):
     """Calculate R500 (in Mpc), with respect to critical density.
 
     Args:
@@ -412,12 +428,12 @@ def calcR500Mpc(z, M500c, cosmoModel):
     
     """
     
-    R500Mpc=calcRDeltaMpc(z, M500c, cosmoModel, delta = 500, wrt = 'critical')
+    R500Mpc=calcRDeltaMpc(z, M500c, cosmoModel, delta = 500, wrt = 'critical', cosmo = cosmo)
     
     return R500Mpc
 
 #------------------------------------------------------------------------------------------------------------
-def calcTheta500Arcmin(z, M500, cosmoModel):
+def calcTheta500Arcmin(z, M500, cosmoModel, cosmo = None):
     """Given `z`, `M500` (in MSun), returns the angular size equivalent to R:sub:`500c`, with respect to the
     critical density.
     
@@ -431,14 +447,17 @@ def calcTheta500Arcmin(z, M500, cosmoModel):
     
     """
     
-    R500Mpc=calcR500Mpc(z, M500, cosmoModel)
+    R500Mpc=calcR500Mpc(z, M500, cosmoModel, cosmo)
     #theta500Arcmin=np.degrees(np.arctan(R500Mpc/cosmoModel.angular_diameter_distance(z).value))*60.0
-    theta500Arcmin=np.degrees(np.arctan(R500Mpc/ccl.angular_diameter_distance(cosmoModel, 1/(1+z))))*60.0
-    
+    theta500ArcminCCL=np.degrees(np.arctan(R500Mpc/ccl.angular_diameter_distance(cosmoModel, 1/(1+z))))*60.0
+    # print('ccl:',theta500Arcmin)
+    theta500Arcmin=np.degrees(np.arctan(R500Mpc/cosmo.angular_distance(z)))*60.0
+    # print('theta500Arcmin ccl/class_sz:',theta500ArcminCCL/theta500Arcmin)
+    # exit(0)
     return theta500Arcmin
     
 #------------------------------------------------------------------------------------------------------------
-def makeArnaudModelProfile(z, M500, GNFWParams = 'default', cosmoModel = None, binning = 'log'):
+def makeArnaudModelProfile(z, M500, GNFWParams = 'default', cosmoModel = None, binning = 'log', cosmo = None):
     """Given z, M500 (in MSun), returns dictionary containing Arnaud model profile (well, knots from spline 
     fit, 'tckP' - assumes you want to interpolate onto an array with units of degrees) and parameters 
     (particularly 'y0', 'theta500Arcmin').
@@ -487,7 +506,7 @@ def makeArnaudModelProfile(z, M500, GNFWParams = 'default', cosmoModel = None, b
     cylPProfile=cylPProfile/cylPProfile.max()
 
     # Calculate R500Mpc, theta500Arcmin corresponding to given mass and redshift
-    theta500Arcmin=calcTheta500Arcmin(z, M500, cosmoModel)
+    theta500Arcmin=calcTheta500Arcmin(z, M500, cosmoModel, cosmo = cosmo)
     
     # Map between b and angular coordinates
     # NOTE: c500 now taken into account in gnfw.py
@@ -694,7 +713,7 @@ def _paintSignalMap(shape, wcs, tckP, beam = None, RADeg = None, decDeg = None, 
 def makeArnaudModelSignalMap(z, M500, shape, wcs, beam = None, RADeg = None, decDeg = None,\
                              GNFWParams = 'default', amplitude = None, maxSizeDeg = 15.0,\
                              convolveWithBeam = True, cosmoModel = None, painter = 'pixell',
-                             omap = None, obsFrequencyGHz = None, TCMBAlpha = 0):
+                             omap = None, obsFrequencyGHz = None, TCMBAlpha = 0, cosmo = None):
     """Makes a 2d signal only map containing an Arnaud model cluster.
     
     Args:
@@ -738,7 +757,7 @@ def makeArnaudModelSignalMap(z, M500, shape, wcs, beam = None, RADeg = None, dec
         RADeg, decDeg=wcs.getCentreWCSCoords()
 
     # Making the 1d profile itself is the slowest part (~1 sec)
-    signalDict=makeArnaudModelProfile(z, M500, GNFWParams = GNFWParams, cosmoModel = cosmoModel)
+    signalDict=makeArnaudModelProfile(z, M500, GNFWParams = GNFWParams, cosmoModel = cosmoModel, cosmo = cosmo)
     tckP=signalDict['tckP']
 
     if painter == 'legacy': # Old method
