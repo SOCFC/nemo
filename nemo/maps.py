@@ -1625,7 +1625,7 @@ def estimateContamination(contamSimDict, imageDict, SNRKeys, label, diagnosticsD
 def makeModelImage(shape, wcs, catalog, beamFileName, obsFreqGHz = None, GNFWParams = 'default',\
                    profile = 'A10', cosmoModel = None, applyPixelWindow = True, override = None,\
                    validAreaSection = None, minSNR = -99, TCMBAlpha = 0, reportTimingInfo = False,\
-                   convolveWithBeam=True, cosmo=None):
+                   convolveWithBeam=True):
     """Make a map with the given dimensions (shape) and WCS, containing model clusters or point sources, 
     with properties as listed in the catalog. This can be used to either inject or subtract sources
     from real maps.
@@ -1740,14 +1740,13 @@ def makeModelImage(shape, wcs, catalog, beamFileName, obsFreqGHz = None, GNFWPar
             y0ToInsert=catalog['y_c'].data*1e-4
             RAs=catalog['RADeg'].data
             decs=catalog['decDeg'].data
-            theta500Arcmin=signals.calcTheta500Arcmin(z, M500, cosmoModel, cosmo = cosmo)
+            theta500Arcmin=signals.calcTheta500Arcmin(z, M500, cosmoModel)
             maxSizeDeg=5*(theta500Arcmin/60)
             modelMap=makeClusterSignalMap(z, M500, modelMap.shape, wcs, RADeg = RAs,
                                           decDeg = decs, beam = beam,
                                           GNFWParams = GNFWParams, amplitude = y0ToInsert,
                                           maxSizeDeg = maxSizeDeg, convolveWithBeam = convolveWithBeam,
-                                          cosmoModel = cosmoModel,
-                                          cosmo = cosmo)
+                                          cosmoModel = cosmoModel)
             if obsFreqGHz is not None:
                 modelMap=convertToDeltaT(modelMap, obsFrequencyGHz = obsFreqGHz,
                                          TCMBAlpha = TCMBAlpha, z = z)
@@ -1760,7 +1759,7 @@ def makeModelImage(shape, wcs, catalog, beamFileName, obsFreqGHz = None, GNFWPar
                     # (to avoid any extra scatter/selection effects after adding model clusters to noise maps).
                     M500=row['true_M500c']*1e14
                     z=row['redshift']
-                    y0ToInsert= cosmo.get_y_at_m_and_z(M500*cosmo.h(),z)#row['true_y_c']*1e-4
+                    y0ToInsert= cosmoModel.get_y_at_m_and_z(M500*cosmoModel.h(),z)#row['true_y_c']*1e-4
                 else:
                     # NOTE: This case is for running from nemo output
                     # We need to adapt this for when the template names are not in this format
@@ -1770,7 +1769,7 @@ def makeModelImage(shape, wcs, catalog, beamFileName, obsFreqGHz = None, GNFWPar
                     M500=float(bits[1][1:].replace("p", "."))
                     z=float(bits[2][1:].replace("p", "."))
                     y0ToInsert=row['y_c']*1e-4  # or fixed_y_c...
-                theta500Arcmin=signals.calcTheta500Arcmin(z, M500, cosmoModel, cosmo = cosmo)
+                theta500Arcmin=signals.calcTheta500Arcmin(z, M500, cosmoModel)
                 maxSizeDeg=5*(theta500Arcmin/60)
                 # Updated in place
                 makeClusterSignalMap(z, M500, modelMap.shape, wcs, RADeg = row['RADeg'],
@@ -1778,7 +1777,7 @@ def makeModelImage(shape, wcs, catalog, beamFileName, obsFreqGHz = None, GNFWPar
                                      GNFWParams = GNFWParams, amplitude = y0ToInsert,
                                      maxSizeDeg = maxSizeDeg, convolveWithBeam = convolveWithBeam,
                                      cosmoModel = cosmoModel, omap = modelMap,
-                                     obsFrequencyGHz = obsFreqGHz, TCMBAlpha = TCMBAlpha, cosmo = cosmo)
+                                     obsFrequencyGHz = obsFreqGHz, TCMBAlpha = TCMBAlpha)
     else:
         # Sources - slower but more accurate way
         for row in catalog:

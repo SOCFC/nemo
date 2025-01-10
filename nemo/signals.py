@@ -370,7 +370,7 @@ def fSZ(obsFrequencyGHz, TCMBAlpha = 0.0, z = None):
     return fSZ
 
 #------------------------------------------------------------------------------------------------------------
-def calcRDeltaMpc(z, MDelta, cosmoModel, delta = 500, wrt = 'critical', cosmo = None):
+def calcRDeltaMpc(z, MDelta, cosmoModel, delta = 500, wrt = 'critical'):
     """Calculate RDelta (e.g., R500c, R200m etc.) in Mpc, for a halo with the given mass and redshift.
     
     Args:
@@ -401,10 +401,10 @@ def calcRDeltaMpc(z, MDelta, cosmoModel, delta = 500, wrt = 'critical', cosmo = 
 
     # print("ccl: ",RDeltaMpc)
     if wrt == 'critical':
-        rd = cosmo.get_r_delta_of_m_delta_at_z(delta, MDelta*cosmo.h(), z)/cosmo.h()
+        rd = cosmoModel.get_r_delta_of_m_delta_at_z(delta, MDelta*cosmoModel.h(), z)/cosmoModel.h()
     elif wrt == 'mean':
-        delta *= 1./cosmo.get_delta_mean_from_delta_crit_at_z(1.,z) #  x Omz
-        rd = cosmo.get_r_delta_of_m_delta_at_z(delta, MDelta*cosmo.h(), z)/cosmo.h()
+        delta *= 1./cosmoModel.get_delta_mean_from_delta_crit_at_z(1.,z) #  x Omz
+        rd = cosmoModel.get_r_delta_of_m_delta_at_z(delta, MDelta*cosmoModel.h(), z)/cosmoModel.h()
     else:
         raise Exception("wrt should be either 'critical' or 'mean'")
     # print("class_sz: ",rd)
@@ -415,7 +415,7 @@ def calcRDeltaMpc(z, MDelta, cosmoModel, delta = 500, wrt = 'critical', cosmo = 
     return RDeltaMpc
 
 #------------------------------------------------------------------------------------------------------------
-def calcR500Mpc(z, M500c, cosmoModel, cosmo = None):
+def calcR500Mpc(z, M500c, cosmoModel):
     """Calculate R500 (in Mpc), with respect to critical density.
 
     Args:
@@ -428,12 +428,12 @@ def calcR500Mpc(z, M500c, cosmoModel, cosmo = None):
     
     """
     
-    R500Mpc=calcRDeltaMpc(z, M500c, cosmoModel, delta = 500, wrt = 'critical', cosmo = cosmo)
+    R500Mpc=calcRDeltaMpc(z, M500c, cosmoModel, delta = 500, wrt = 'critical')
     
     return R500Mpc
 
 #------------------------------------------------------------------------------------------------------------
-def calcTheta500Arcmin(z, M500, cosmoModel, cosmo = None):
+def calcTheta500Arcmin(z, M500, cosmoModel):
     """Given `z`, `M500` (in MSun), returns the angular size equivalent to R:sub:`500c`, with respect to the
     critical density.
     
@@ -447,17 +447,17 @@ def calcTheta500Arcmin(z, M500, cosmoModel, cosmo = None):
     
     """
     
-    R500Mpc=calcR500Mpc(z, M500, cosmoModel, cosmo)
+    R500Mpc=calcR500Mpc(z, M500, cosmoModel)
     #theta500Arcmin=np.degrees(np.arctan(R500Mpc/cosmoModel.angular_diameter_distance(z).value))*60.0
-    theta500ArcminCCL=np.degrees(np.arctan(R500Mpc/ccl.angular_diameter_distance(cosmoModel, 1/(1+z))))*60.0
+    # theta500ArcminCCL=np.degrees(np.arctan(R500Mpc/ccl.angular_diameter_distance(cosmoModel, 1/(1+z))))*60.0
     # print('ccl:',theta500Arcmin)
-    theta500Arcmin=np.degrees(np.arctan(R500Mpc/cosmo.angular_distance(z)))*60.0
+    theta500Arcmin=np.degrees(np.arctan(R500Mpc/cosmoModel.angular_distance(z)))*60.0
     # print('theta500Arcmin ccl/class_sz:',theta500ArcminCCL/theta500Arcmin)
     # exit(0)
     return theta500Arcmin
     
 #------------------------------------------------------------------------------------------------------------
-def makeArnaudModelProfile(z, M500, GNFWParams = 'default', cosmoModel = None, binning = 'log', cosmo = None):
+def makeArnaudModelProfile(z, M500, GNFWParams = 'default', cosmoModel = None, binning = 'log'):
     """Given z, M500 (in MSun), returns dictionary containing Arnaud model profile (well, knots from spline 
     fit, 'tckP' - assumes you want to interpolate onto an array with units of degrees) and parameters 
     (particularly 'y0', 'theta500Arcmin').
@@ -506,7 +506,7 @@ def makeArnaudModelProfile(z, M500, GNFWParams = 'default', cosmoModel = None, b
     cylPProfile=cylPProfile/cylPProfile.max()
 
     # Calculate R500Mpc, theta500Arcmin corresponding to given mass and redshift
-    theta500Arcmin=calcTheta500Arcmin(z, M500, cosmoModel, cosmo = cosmo)
+    theta500Arcmin=calcTheta500Arcmin(z, M500, cosmoModel)
     
     # Map between b and angular coordinates
     # NOTE: c500 now taken into account in gnfw.py
@@ -713,7 +713,7 @@ def _paintSignalMap(shape, wcs, tckP, beam = None, RADeg = None, decDeg = None, 
 def makeArnaudModelSignalMap(z, M500, shape, wcs, beam = None, RADeg = None, decDeg = None,\
                              GNFWParams = 'default', amplitude = None, maxSizeDeg = 15.0,\
                              convolveWithBeam = True, cosmoModel = None, painter = 'pixell',
-                             omap = None, obsFrequencyGHz = None, TCMBAlpha = 0, cosmo = None):
+                             omap = None, obsFrequencyGHz = None, TCMBAlpha = 0):
     """Makes a 2d signal only map containing an Arnaud model cluster.
     
     Args:
@@ -757,7 +757,7 @@ def makeArnaudModelSignalMap(z, M500, shape, wcs, beam = None, RADeg = None, dec
         RADeg, decDeg=wcs.getCentreWCSCoords()
 
     # Making the 1d profile itself is the slowest part (~1 sec)
-    signalDict=makeArnaudModelProfile(z, M500, GNFWParams = GNFWParams, cosmoModel = cosmoModel, cosmo = cosmo)
+    signalDict=makeArnaudModelProfile(z, M500, GNFWParams = GNFWParams, cosmoModel = cosmoModel)
     tckP=signalDict['tckP']
 
     if painter == 'legacy': # Old method

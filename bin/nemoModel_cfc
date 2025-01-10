@@ -20,6 +20,7 @@ on_rtd=os.environ.get('READTHEDOCS', None)
 if on_rtd is None:
     import pyccl as ccl
 import logging
+import yaml
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ def makeParser():
                         used by ACT.")
     parser.add_argument("outputFileName", help = "The name of the output file that will contain the sky\
                         model image.")
-    parser.add_argument("class_sz_settings", help = "class_sz_settings")
+    parser.add_argument("path2config", help = "The path to the config file with all settings.")
     parser.add_argument("-f", "--frequency-GHz", dest = "obsFreqGHz", type = float, default = 150.0,
                         help = "If the nemo catalog contains SZ-selected clusters, the SZ signal will be\
                         evaluted at the given frequency, ignoring relativistic effects (default: 150.0).")
@@ -112,6 +113,11 @@ if __name__ == '__main__':
 
     parser=makeParser()
     args=parser.parse_args()
+
+    config_fn = args.path2config
+    with open(config_fn, 'r') as fn:
+        config = yaml.load(fn, Loader=yaml.FullLoader)
+        logger.info('Read config from {}.'.format(args.path2config))
     
     if args.noStrictMPIExceptions == True:
         strictMPIExceptions=False
@@ -214,67 +220,44 @@ if __name__ == '__main__':
         tab=atpy.Table().read(args.catalog)
         t1=time.time()
         logger.info('Read catalog from {}.'.format(args.catalog))
-    print(f"loading class_sz_settings from {args.class_sz_settings}")
-    args.class_sz_settings = os.path.dirname(args.class_sz_settings)
-    sys.path.append(args.class_sz_settings)
-    from class_sz_settings import class_sz_ym_params, common_class_sz_settings
-    all_class_sz_settings = class_sz_ym_params | common_class_sz_settings
 
-
-    # Optionally override the fiducial cosmology (only useful for cluster sims)
-    keywords=['OM0', 'OB0', 'H0', 'SIGMA8', 'NS', 'TRANSFER_FUNCTION', 'M_NU']
-    keyCount=0
-    for key in keywords:
-        if key in tab.meta.keys():
-            keyCount=keyCount+1
-    if keyCount == len(keywords):
-        if rank == 0:
-            print(">>> Using cosmology specified in header for catalog %s [only affects painted cluster sizes]" % (args.catalog))
-
+    if config['theoryCode'] == 'CCL':
+        logger.info('Using CCL for theory predictions.')
+    
         mass_split = 'normal'
-        if tab.meta['M_NU'] != 0.0 and tab.meta['N_NU'] == 1:
+        if config['M_NU'] != 0.0 and config['N_NU'] == 1:
             mass_split = 'single'
 
-        cosmoModel=ccl.Cosmology(Omega_c = tab.meta['OM0']-tab.meta['OB0'],
-                                 Omega_b = tab.meta['OB0'],
-                                 h = 0.01*tab.meta['H0'],
-                                 sigma8 = tab.meta['SIGMA8'],
-                                 n_s = tab.meta['NS'],
-                                 transfer_function = tab.meta['TRANSFER_FUNCTION'],
-                                 m_nu = tab.meta['M_NU'],
+        cosmoModel=ccl.Cosmology(Omega_c = config['Om0']-config['Ob0'],
+                                 Omega_b = config['Ob0'],
+                                 h = 0.01*config['H0'],
+                                 sigma8 = config['sigma8'],
+                                 n_s = config['ns'],
+                                 transfer_function = config['transferFunction'],
+                                 m_nu = config['m_nu'],
                                  mass_split = mass_split)
 
         logger.info('Using CCL cosmology with {}.'.format(cosmoModel))
+    
+    elif config['theoryCode'] == 'class_sz':
+        logger.info('Using class_sz for theory predictions.')
 
         class_sz_cosmo_params = {
-                                'Omega_b': tab.meta['OB0'],
-                                'Omega_cdm':  tab.meta['OM0']-tab.meta['OB0'],
-                                'H0': tab.meta['H0'],
-                                'sigma8': tab.meta['SIGMA8'],
+                                'Omega_b': config['Ob0'],
+                                'Omega_cdm':  config['Om0']-config['Ob0'],
+                                'H0': config['H0'],
+                                'sigma8': config['sigma8'],
                                 'tau_reio':  0.0561, ## doesnt matter
-                                'n_s': tab.meta['NS'],
+                                'n_s': config['ns'],
                                 'm_ncdm': 0.06,
-                                }
-        all_class_sz_settings = all_class_sz_settings | class_sz_cosmo_params
-        print(all_class_sz_settings)
-        print("computing cosmology with class_sz")
-        cosmo = Class()
-        cosmo.set(all_class_sz_settings)
-        cosmo.compute_class_szfast()
-        print("cosmology computed")
-        print("test... computing da at z=0.1")
-        z=0.1
-        da = cosmo.angular_distance(z)
-        print("da: ",da)
-        print("computation with ccl:")
-        da_ccl = ccl.angular_diameter_distance(cosmoModel, 1/(1+z))
-        print("da_ccl/da :",da_ccl/da)
-        # exit(0)
-       
+                                }   
+        cosmoModel = Class()
+        cosmoModel.set(config['class_sz']['common_class_sz_settings'])
+        cosmoModel.set(config['class_sz']['class_sz_ym_params'])
+        cosmoModel.compute_class_szfast()
 
     else:
-        raise Exception('Not all cosmological parameters provided in input table. Need OM0, OB0, H0, SIGMA8, NS, '
-                        'TRANSFER_FUNCTION, M_NU')
+        raise Exception('theoryCode must be CCL or class_sz.')
 
     # Optional signal scaling (useful for diff alpha sims)
     if 'y_c' in tab.keys():
@@ -296,11 +279,11 @@ if __name__ == '__main__':
     t0=time.time()
 
     GNFW_dict = {
-                 'P0': tab.meta['P0_GNFW'], # Careful P0 in nemo is defined without h70 (but doesn't matter as gets renormalized anyway)
-                 'c500': tab.meta['C500_GNFW'],
-                 'gamma': tab.meta['GAMMA_GNFW'],
-                 'alpha': tab.meta['ALPHA_GNFW'],
-                 'beta':  tab.meta['BETA_GNFW'],
+                 'P0': config['GNFW']['P0GNFW'], # Careful P0 in nemo is defined without h70 (but doesn't matter as gets renormalized anyway)
+                 'c500': config['GNFW']['c500GNFW'],
+                 'gamma': config['GNFW']['gammaGNFW'],
+                 'alpha': config['GNFW']['alphaGNFW'],
+                 'beta':  config['GNFW']['betaGNFW'],
                  'tol': 1e-7, # taken from default
                  'npts': 100 # taken from default
                  }
@@ -313,8 +296,7 @@ if __name__ == '__main__':
                                    cosmoModel = cosmoModel,
                                    GNFWParams=GNFW_dict,
                                    reportTimingInfo = False,
-                                   convolveWithBeam=convolveWithBeam,
-                                   cosmo = cosmo)
+                                   convolveWithBeam=convolveWithBeam)
     t1=time.time()
     print("... rank %d image complete (took %.3f sec)" % (rank, t1-t0))
 
