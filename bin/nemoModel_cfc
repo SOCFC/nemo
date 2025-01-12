@@ -32,7 +32,7 @@ from classy_sz import Class
 def makeParser():
     
     parser=argparse.ArgumentParser("nemoModel")
-    parser.add_argument("catalog", help = "Either the path to a Nemo FITS-table format catalog,\
+    parser.add_argument("--catalog", help = "Either the path to a Nemo FITS-table format catalog,\
                         or 'pointsources-N' (to generate a test catalog of N point sources that will be\
                         inserted into the map, e.g., pointsources-1000 will insert 1000 sources). If\
                         the latter, the catalog will be written to outputFileName_inputCatalog.fits\
@@ -40,15 +40,15 @@ def makeParser():
                         cosmological parameters may be specified in the FITS header using the\
                         OM0, OB0, H0, SIGMA8, NS keywords (used only for cluster models at the\
                         moment).")
-    parser.add_argument("maskFileName", help = "A FITS image file, containing a mask of the desired sky\
+    parser.add_argument("--maskFileName", help = "A FITS image file, containing a mask of the desired sky\
                         area. Non-zero values in the mask are used to define tiles (typically 10 x 5 deg),\
                         which are processed in parallel if MPI is enabled (see -M switch). The output sky\
                         model image will have the same pixelization as the mask image.")
-    parser.add_argument("beamFileName", help = "A file containing the beam profile, in the standard format\
+    parser.add_argument("--beamFileName", help = "A file containing the beam profile, in the standard format\
                         used by ACT.")
-    parser.add_argument("outputFileName", help = "The name of the output file that will contain the sky\
+    parser.add_argument("--outputFileName", help = "The name of the output file that will contain the sky\
                         model image.")
-    parser.add_argument("path2config", help = "The path to the config file with all settings.")
+    parser.add_argument("--path2config", help = "The path to the config file with all settings.")
     parser.add_argument("-f", "--frequency-GHz", dest = "obsFreqGHz", type = float, default = 150.0,
                         help = "If the nemo catalog contains SZ-selected clusters, the SZ signal will be\
                         evaluted at the given frequency, ignoring relativistic effects (default: 150.0).")
