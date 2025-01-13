@@ -638,7 +638,7 @@ def makeBeamModelSignalMap(degreesMap, wcs, beam, amplitude = None):
 #------------------------------------------------------------------------------------------------------------
 def _paintSignalMap(shape, wcs, tckP, beam = None, RADeg = None, decDeg = None, amplitude = None,
                     maxSizeDeg = 10.0, convolveWithBeam = True, vmin = 1e-12, omap = None,
-                    obsFrequencyGHz = None, TCMBAlpha = 0, z = None):
+                    obsFrequencyGHz = None, TCMBAlpha = 0, z = None, minDeg=None):
     """Use Sigurd's fast object painter to paint given signal into map.
 
     Notes:
@@ -665,7 +665,7 @@ def _paintSignalMap(shape, wcs, tckP, beam = None, RADeg = None, decDeg = None, 
         rprof=rht.harm2real(lprof)
         r, rprof=rht.unpad(rht.r, rprof)
     else:
-        rDeg=np.logspace(np.log10(1e-6), np.log10(maxSizeDeg), 5000)
+        rDeg=np.logspace(np.log10(1.000001*minDeg), np.log10(maxSizeDeg), 5000)
         rprof=interpolate.splev(rDeg, tckP, ext = 1)
         r=np.radians(rDeg)
     if amplitude is not None:
@@ -776,7 +776,8 @@ def makeArnaudModelSignalMap(z, M500, shape, wcs, beam = None, RADeg = None, dec
         signalMap=_paintSignalMap(shape, wcs, tckP, beam = beam, RADeg = RADeg, decDeg = decDeg,
                                   amplitude = amplitude, maxSizeDeg = maxSizeDeg,
                                   convolveWithBeam = convolveWithBeam, omap = omap,
-                                  obsFrequencyGHz = obsFrequencyGHz, TCMBAlpha = TCMBAlpha, z = z)
+                                  obsFrequencyGHz = obsFrequencyGHz, TCMBAlpha = TCMBAlpha, z = z, 
+                                  minDeg=signalDict['rDeg'].min())
     else:
         raise Exception("'painter' must be 'legacy' or 'pixell' (given '%s')." % (painter))
 
