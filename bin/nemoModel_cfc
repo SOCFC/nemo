@@ -49,6 +49,8 @@ def makeParser():
     parser.add_argument("--outputFileName", help = "The name of the output file that will contain the sky\
                         model image.")
     parser.add_argument("--path2config", help = "The path to the config file with all settings.")
+    parser.add_argument("--pixwin", dest = "applyPixelWindow", type = bool, default = False,
+                        help = "Apply the pixel window function when making the maps.")
     parser.add_argument("-f", "--frequency-GHz", dest = "obsFreqGHz", type = float, default = 150.0,
                         help = "If the nemo catalog contains SZ-selected clusters, the SZ signal will be\
                         evaluted at the given frequency, ignoring relativistic effects (default: 150.0).")
@@ -296,7 +298,8 @@ if __name__ == '__main__':
                                    cosmoModel = cosmoModel,
                                    GNFWParams=GNFW_dict,
                                    reportTimingInfo = False,
-                                   convolveWithBeam=convolveWithBeam)
+                                   convolveWithBeam=convolveWithBeam,
+                                   applyPixelWindow=args.applyPixelWindow)
     t1=time.time()
     print("... rank %d image complete (took %.3f sec)" % (rank, t1-t0))
 
