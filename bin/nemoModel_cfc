@@ -138,6 +138,11 @@ if __name__ == '__main__':
         args.beamFileName = None
         convolveWithBeam = False
 
+    if args.applyPixelWindow:
+        logger.info('Applying pixel window function.')
+
+    logger.info('Frequency is {}.'.format(args.obsFreqGHz))
+
     areaMask, wcs=maps.chunkLoadMask(args.maskFileName)
     shape=areaMask.shape
     logger.info('Read mask from {}.'.format(args.maskFileName))
