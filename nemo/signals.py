@@ -36,6 +36,7 @@ import glob
 import shutil
 import yaml
 import warnings
+from classy_sz import Class
 np.random.seed()
 
 #------------------------------------------------------------------------------------------------------------
@@ -54,22 +55,75 @@ Ob0=0.05
 H0=70
 sigma8=0.8
 ns=0.95
-transferFunction="boltzmann_camb"
-on_rtd=os.environ.get('READTHEDOCS', None)
-if on_rtd is None:
-    import pyccl as ccl
-    fiducialCosmoModel=ccl.Cosmology(Omega_c=Om0-Ob0, Omega_b=Ob0, h=0.01*H0, sigma8=sigma8, n_s=ns,
-                                    transfer_function=transferFunction)
+# transferFunction="boltzmann_camb"
+# on_rtd=os.environ.get('READTHEDOCS', None)
+# if on_rtd is None:
+#     import pyccl as ccl
+#     fiducialCosmoModel=ccl.Cosmology(Omega_c=Om0-Ob0, Omega_b=Ob0, h=0.01*H0, sigma8=sigma8, n_s=ns,
+#                                     transfer_function=transferFunction)
 
-    # For CCL-based mass conversions
-    M200mDef=ccl.halos.MassDef(200, "matter")
-    M200cDef=ccl.halos.MassDef(200, "critical")
-    M500cDef=ccl.halos.MassDef(500, "critical")
-else:
-    fiducialCosmoModel=None
-    M200mDef=None
-    M200cDef=None
-    M500cDef=None
+#     # For CCL-based mass conversions
+#     M200mDef=ccl.halos.MassDef(200, "matter")
+#     M200cDef=ccl.halos.MassDef(200, "critical")
+#     M500cDef=ccl.halos.MassDef(500, "critical")
+
+class_sz_cosmo_params = {
+                        'Omega_b': Ob0,
+                        'Omega_cdm':  Om0 - Ob0,
+                        'H0': H0,
+                        'sigma8': sigma8,
+                        'tau_reio':  0.0561, ## doesnt matter
+                        'n_s': ns,
+                        'm_ncdm': 0.06,
+                        }   
+
+common_class_sz_settings = {
+                            'mass function': 'T08M500c',
+                            'hm_consistency': 0,
+                            'concentration parameter': 'B13',
+                            'cosmo_model': 1,
+                            'B': 1.,
+                            'z_min': 1.e-4,
+                            'z_max': 4.,
+                            'redshift_epsrel': 1e-6,
+                            'redshift_epsabs': 1e-100,
+                            'M_min': 1e13,
+                            'M_max': 1e17,
+                            'mass_epsrel': 1e-6,
+                            'mass_epsabs': 1e-100,
+                            'ndim_redshifts': 500,
+                            'ndim_masses': 500,
+                            'n_m_dndlnM': 500,
+                            'n_z_dndlnM': 500,
+                            'HMF_prescription_NCDM': 1,
+                            'no_spline_in_tinker': 1,
+                            'use_m500c_in_ym_relation': 1,
+                            'use_m200c_in_ym_relation': 0,
+                            'y_m_relation': 1,
+                            'output': 'dndlnM,m500c_to_m200c,m200c_to_m500c'
+                            }
+
+class_sz_ym_params = {
+    'A_ym':  4.8612e-05, # tenToA0 in h70^0.5
+    'B_ym': 0.12,
+    'C_ym': 0.,
+    'sigmaM_ym': 0.2,
+    'm_pivot_ym_[Msun]': 300000000000000.0, # Mpivot in h70^-1 Msun
+    'B': 1.
+    }
+
+cosmoModel = Class()
+cosmoModel.set(class_sz_cosmo_params)
+cosmoModel.set(common_class_sz_settings)
+cosmoModel.set(class_sz_ym_params)
+cosmoModel.compute_class_szfast()
+fiducialCosmoModel = cosmoModel
+
+# else:
+#     fiducialCosmoModel=None
+#     M200mDef=None
+#     M200cDef=None
+#     M500cDef=None
 
 #------------------------------------------------------------------------------------------------------------
 class BeamProfile(object):
