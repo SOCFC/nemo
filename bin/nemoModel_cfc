@@ -259,6 +259,7 @@ if __name__ == '__main__':
                                 'm_ncdm': 0.06,
                                 }   
         cosmoModel = Class()
+        cosmoModel.set(class_sz_cosmo_params)
         cosmoModel.set(config['class_sz']['common_class_sz_settings'])
         cosmoModel.set(config['class_sz']['class_sz_ym_params'])
         cosmoModel.compute_class_szfast()
