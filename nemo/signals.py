@@ -1008,10 +1008,17 @@ def fitQ(config):
         zRange_wanted=[2.0]*10 + [1.0]*10 + [0.6]*10 + [0.3]*10 + [0.1]*10 + [0.07]*4
         MRange_wanted=[]
         for theta500Arcmin, z in zip(theta500Arcmin_wanted, zRange_wanted):
-            Ez=ccl.h_over_h0(cosmoModel, 1/(1+z))
-            criticalDensity=ccl.physical_constants.RHO_CRITICAL*(Ez*cosmoModel['h'])**2
-            R500Mpc=np.tan(np.radians(theta500Arcmin/60.0))*ccl.angular_diameter_distance(cosmoModel, 1/(1+z))
-            M500=(4/3.0)*np.pi*np.power(R500Mpc, 3)*500*criticalDensity
+            # Ez=ccl.h_over_h0(cosmoModel, 1/(1+z))
+            # criticalDensity=ccl.physical_constants.RHO_CRITICAL*(Ez*cosmoModel['h'])**2
+            # R500Mpc=np.tan(np.radians(theta500Arcmin/60.0))*ccl.angular_diameter_distance(cosmoModel, 1/(1+z))
+            # M500=(4/3.0)*np.pi*np.power(R500Mpc, 3)*500*criticalDensity
+
+            Ez = cosmoModel.Hubble(z)/cosmoModel.Hubble(0.)
+            criticalDensity = cosmoModel.get_rho_crit_at_z(z)*cosmoModel.h()**2
+            angular_diameter_distance = cosmoModel.get_chi(z)/(1.+z)/cosmoModel.h()
+            R500Mpc = np.tan(np.radians(theta500Arcmin/60.0))*angular_diameter_distance
+            M500 = (4/3.0)*np.pi*np.power(R500Mpc, 3)*500*criticalDensity
+
             MRange_wanted.append(M500)
         MRange=MRange+MRange_wanted
         zRange=zRange+zRange_wanted
@@ -1050,10 +1057,17 @@ def fitQ(config):
         for z in zGrid:
             MRange_wanted=[]
             for theta500Arcmin in theta500Arcmin_wanted:
-                Ez=ccl.h_over_h0(cosmoModel, 1/(1+z))
-                criticalDensity=ccl.physical_constants.RHO_CRITICAL*(Ez*cosmoModel['h'])**2
-                R500Mpc=np.tan(np.radians(theta500Arcmin/60.0))*ccl.angular_diameter_distance(cosmoModel, 1/(1+z))
-                M500=(4/3.0)*np.pi*np.power(R500Mpc, 3)*500*criticalDensity
+                # Ez=ccl.h_over_h0(cosmoModel, 1/(1+z))
+                # criticalDensity=ccl.physical_constants.RHO_CRITICAL*(Ez*cosmoModel['h'])**2
+                # R500Mpc=np.tan(np.radians(theta500Arcmin/60.0))*ccl.angular_diameter_distance(cosmoModel, 1/(1+z))
+                # M500=(4/3.0)*np.pi*np.power(R500Mpc, 3)*500*criticalDensity
+
+                Ez = cosmoModel.Hubble(z)/cosmoModel.Hubble(0.)
+                criticalDensity = cosmoModel.get_rho_crit_at_z(z)*cosmoModel.h()**2
+                angular_diameter_distance = cosmoModel.get_chi(z)/(1.+z)/cosmoModel.h()
+                R500Mpc = np.tan(np.radians(theta500Arcmin/60.0))*angular_diameter_distance
+                M500 = (4/3.0)*np.pi*np.power(R500Mpc, 3)*500*criticalDensity
+
                 MRange_wanted.append(M500)
             MRange=MRange+MRange_wanted
             zRange=zRange+([z]*len(MRange_wanted))
