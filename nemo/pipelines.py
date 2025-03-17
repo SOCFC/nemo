@@ -32,7 +32,8 @@ from . import MockSurvey
 #------------------------------------------------------------------------------------------------------------
 def filterMapsAndMakeCatalogs(config, rootOutDir = None, useCachedFilters = False, useCachedRMSMap = False,\
                               useCachedFilteredMaps = False, measureFluxes = True, invertMap = False, \
-                              verbose = True, writeAreaMask = False, writeFlagMask = False):
+                              verbose = True, writeAreaMask = False, writeFlagMask = False,
+                              cosmoModel=None):
     """Runs the map filtering and catalog construction steps according to the given configuration.
     
     Args:
@@ -101,7 +102,8 @@ def filterMapsAndMakeCatalogs(config, rootOutDir = None, useCachedFilters = Fals
                                            useCachedFilteredMaps = useCachedFilteredMaps,
                                            useCachedRMSMap = useCachedRMSMap, measureFluxes = measureFluxes,
                                            invertMap = invertMap, verbose = verbose,
-                                           writeAreaMask = writeAreaMask, writeFlagMask = writeFlagMask)
+                                           writeAreaMask = writeAreaMask, writeFlagMask = writeFlagMask,
+                                           cosmoModel=cosmoModel)
 
     if verbose == True and config.rank == 0:
         print("... after map filtering and making catalogs: time since start = %.3f sec" % (time.time()-config._timeStarted))
@@ -111,7 +113,8 @@ def filterMapsAndMakeCatalogs(config, rootOutDir = None, useCachedFilters = Fals
 #------------------------------------------------------------------------------------------------------------
 def _filterMapsAndMakeCatalogs(config, rootOutDir = None, useCachedFilters = False, useCachedRMSMap = False,\
                                useCachedFilteredMaps = False, measureFluxes = True, invertMap = False, \
-                               verbose = True, writeAreaMask = False, writeFlagMask = False):
+                               verbose = True, writeAreaMask = False, writeFlagMask = False, 
+                               cosmoModel=None):
     """Runs the map filtering and catalog construction steps according to the given configuration.
     
     Args:
@@ -219,7 +222,8 @@ def _filterMapsAndMakeCatalogs(config, rootOutDir = None, useCachedFilters = Fal
                 filterResults=filters.filterMaps(config.unfilteredMapsDictList, f, tileName,
                                                  diagnosticsDir = config.diagnosticsDir, selFnDir = config.selFnDir,
                                                  verbose = True, undoPixelWindow = undoPixelWindow,
-                                                 useCachedFilter = useCachedFilters, returnFilter = returnFilter)
+                                                 useCachedFilter = useCachedFilters, returnFilter = returnFilter, 
+                                                 cosmoModel=cosmoModel)
                 if returnFilter == False:
                     filteredMapDict=filterResults
                 else:

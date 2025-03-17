@@ -50,7 +50,7 @@ import time
 #-------------------------------------------------------------------------------------------------------------
 def filterMaps(unfilteredMapsDictList, filterParams, tileName, diagnosticsDir = '.', \
                selFnDir = '.', verbose = True, undoPixelWindow = True, useCachedFilter = False, \
-               returnFilter = False):
+               returnFilter = False, cosmoModel=None):
     """Builds and applies filters to the unfiltered map(s). 
     
     Args:
@@ -82,7 +82,8 @@ def filterMaps(unfilteredMapsDictList, filterParams, tileName, diagnosticsDir = 
     filterClass=eval('%s' % (f['class']))
     filterObj=filterClass(f['label'], unfilteredMapsDictList, f['params'], tileName = tileName,
                             diagnosticsDir = diagnosticsDir, selFnDir = selFnDir)
-    filteredMapDict=filterObj.buildAndApply(useCachedFilter = useCachedFilter)
+    filteredMapDict=filterObj.buildAndApply(useCachedFilter = useCachedFilter,
+                                            cosmoModel=cosmoModel)
 
     # Keywords we need for photometry later
     filteredMapDict['wcs'].header['BUNIT']=filteredMapDict['mapUnits']
@@ -518,7 +519,7 @@ class MatchedFilter(MapFilter):
     
     """
 
-    def buildAndApply(self, useCachedFilter = False):
+    def buildAndApply(self, useCachedFilter = False, cosmoModel=None):
         
         fMapsToFilter=[]
         for mapDict in self.unfilteredMapsDictList:
@@ -542,7 +543,8 @@ class MatchedFilter(MapFilter):
                         for noiseModelCatalog in self.params['noiseModelCatalog']:
                             model=maps.makeModelImage(d.shape, self.wcs, noiseModelCatalog,
                                                       mapDict['beamFileName'],
-                                                      obsFreqGHz = mapDict['obsFreqGHz'])
+                                                      obsFreqGHz = mapDict['obsFreqGHz'], 
+                                                      cosmoModel=cosmoModel)
                             if model is not None:
                                 d=d-model
                     fMapsForNoise.append(enmap.fft(enmap.apod(d, self.apodPix)))

@@ -25,6 +25,11 @@ import types
 import yaml
 #import IPython
 pylab.matplotlib.interactive(False)
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+from classy_sz import Class
 
 #------------------------------------------------------------------------------------------------------------
 def makeParser():
@@ -75,6 +80,31 @@ if __name__ == '__main__':
     config=startUp.NemoConfig(parDictFileName, calcSelFn = args.calcSelFn,
                               sourceInjectionTest = args.sourceInjectionTest, MPIEnabled = args.MPIEnabled,
                               strictMPIExceptions = strictMPIExceptions, writeTileInfo = True)
+    
+
+
+    if config.parDict['theoryCode'] == 'class_sz':
+        logger.info('Using class_sz for theory predictions.')
+
+        class_sz_cosmo_params = {
+                                'Omega_b': config.parDict['Ob0'],
+                                'Omega_cdm':  config.parDict['Om0']-config.parDict['Ob0'],
+                                'H0': config.parDict['H0'],
+                                'sigma8': config.parDict['sigma8'],
+                                'tau_reio':  0.0561, ## doesnt matter
+                                'n_s': config.parDict['ns'],
+                                'm_ncdm': 0.06,
+                                }   
+        cosmoModel = Class()
+        cosmoModel.set(class_sz_cosmo_params)
+        cosmoModel.set(config['class_sz']['common_class_sz_settings'])
+        cosmoModel.set(config['class_sz']['class_sz_ym_params'])
+        cosmoModel.compute_class_szfast()
+
+    else:
+        raise Exception('theoryCode must be class_sz.')
+
+
     if args.tilingCheck == True:
         print(">>> Tiling check:")
         print("... This config has %d tiles." % (len(config.allTileNames)))
@@ -89,7 +119,11 @@ if __name__ == '__main__':
         optimalCatalogFileName=config.rootOutDir+os.path.sep+"%s_optimalCatalog.csv" % (os.path.split(config.rootOutDir)[-1])
 
     if os.path.exists(optimalCatalogFileName) == False:
-        optimalCatalog=pipelines.filterMapsAndMakeCatalogs(config, writeAreaMask = True, writeFlagMask = True)
+        optimalCatalog=pipelines.filterMapsAndMakeCatalogs(config, 
+                                                           writeAreaMask = True, 
+                                                           writeFlagMask = True,
+                                                           cosmoModel=cosmoModel)
+        
         if config.rank == 0:
             optimalCatalog=catalogs.flagTileBoundarySplits(optimalCatalog)
             optimalCatalog.sort('name')
