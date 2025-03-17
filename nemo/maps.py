@@ -1667,6 +1667,8 @@ def makeModelImage(shape, wcs, catalog, beamFileName, obsFreqGHz = None, GNFWPar
     
     """
 
+    print('in makeModelImage', cosmoModel)
+
     modelMap=enmap.zeros(shape, dtype = np.float32) #np.zeros(shape, dtype = np.float32)
 
     if type(catalog) == str:

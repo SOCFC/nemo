@@ -530,7 +530,7 @@ def makeArnaudModelProfile(z, M500, GNFWParams = 'default', cosmoModel = None, b
     Used by ArnaudModelFilter
     
     """
-
+    
     if cosmoModel is None:
         cosmoModel=fiducialCosmoModel
 

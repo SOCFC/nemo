@@ -496,7 +496,7 @@ class MapFilter(object):
                     self.fRelWeights[freqGHz]=img[0].header['RW%d' % (i)]
 
 
-    def makeSignalTemplateMap(self, beam, amplitude = None):
+    def makeSignalTemplateMap(self, beam, amplitude = None, cosmoModel=None):
         """Makes a model signal template map. Shape parameters (if applicable) are taken from the object's
         `params` attribute.
         
@@ -520,7 +520,7 @@ class MatchedFilter(MapFilter):
     """
 
     def buildAndApply(self, useCachedFilter = False, cosmoModel=None):
-        
+
         fMapsToFilter=[]
         for mapDict in self.unfilteredMapsDictList:
             fMapsToFilter.append(enmap.fft(enmap.apod(mapDict['data'], self.apodPix)))
@@ -613,7 +613,7 @@ class MatchedFilter(MapFilter):
             signalMapsList=[]
             fSignalsArr=[]
             for mapDict in self.unfilteredMapsDictList:
-                signalMap=self.makeSignalTemplateMap(mapDict['beamFileName'])
+                signalMap=self.makeSignalTemplateMap(mapDict['beamFileName'], cosmoModel=cosmoModel)
                 fSignal=enmap.fft(signalMap)
                 signalMapsList.append(signalMap)
                 fSignalsArr.append(fSignal)
@@ -638,11 +638,13 @@ class MatchedFilter(MapFilter):
                 y0=2e-4
                 for mapDict in self.unfilteredMapsDictList:
                     if mapDict['units'] == 'yc':    # For handling TILe-C maps
-                        signalMap=self.makeSignalTemplateMap(mapDict['beamFileName'], amplitude = y0)
+                        signalMap=self.makeSignalTemplateMap(mapDict['beamFileName'], amplitude = y0,
+                                                             cosmoModel=cosmoModel)
                     else:                           # The normal case
                         deltaT0=maps.convertToDeltaT(y0, mapDict['obsFreqGHz'])
                         signalMap=self.makeSignalTemplateMap(mapDict['beamFileName'], 
-                                                             amplitude = deltaT0)
+                                                             amplitude = deltaT0,
+                                                             cosmoModel=cosmoModel)
                     signalMap=enmap.apply_window(signalMap, pow=1.0) # Needed for clusters, 1.5% effect
                     signalMaps.append(signalMap)
                     fSignal=enmap.fft(signalMap)
@@ -675,7 +677,7 @@ class MatchedFilter(MapFilter):
                 signalMaps=[]
                 fSignalMaps=[]
                 for mapDict in self.unfilteredMapsDictList:
-                    signalMap=self.makeSignalTemplateMap(mapDict['beamFileName'])
+                    signalMap=self.makeSignalTemplateMap(mapDict['beamFileName'], cosmoModel=cosmoModel)
                     #signalMap=enmap.apply_window(signalMap, pow=1.0) # Tests with nemoModel confirm not needed here
                     signalMaps.append(signalMap)
                     fSignal=enmap.fft(signalMap)
@@ -1002,12 +1004,14 @@ class RealSpaceMatchedFilter(MapFilter):
                     # Normal case
                     deltaT0=maps.convertToDeltaT(y0, mapDict['obsFreqGHz'])
                     signalMap=self.makeSignalTemplateMap(mapDict['beamFileName'],
-                                                         amplitude = deltaT0)
+                                                         amplitude = deltaT0,
+                                                         cosmoModel=cosmoModel)
                 else:
                     # TILe-C case
-                    signalMap=self.makeSignalTemplateMap(mapDict['beamFileName'], amplitude = y0)
+                    signalMap=self.makeSignalTemplateMap(mapDict['beamFileName'], amplitude = y0,
+                                                         cosmoModel=cosmoModel)
             elif self.params['outputUnits'] == 'uK':
-                signalMap=self.makeSignalTemplateMap(mapDict['beamFileName'])
+                signalMap=self.makeSignalTemplateMap(mapDict['beamFileName'], cosmoModel=cosmoModel)
             else:
                 raise Exception('need to specify "outputUnits" ("yc" or "uK") in filter params')
             signalMaps.append(signalMap)
@@ -1218,7 +1222,7 @@ class BeamFilter(MapFilter):
         
     """
     
-    def makeSignalTemplateMap(self, beamFileName, amplitude = None):
+    def makeSignalTemplateMap(self, beamFileName, amplitude = None, cosmoModel=None):
         signalMap=signals.makeBeamModelSignalMap(np.degrees(self.radiansMap),
                                                             self.wcs, 
                                                             beamFileName,
@@ -1234,14 +1238,15 @@ class ArnaudModelFilter(MapFilter):
     
     """
     
-    def makeSignalTemplateMap(self, beamFileName, amplitude = None):
+    def makeSignalTemplateMap(self, beamFileName, amplitude = None, cosmoModel=None):
         RADeg, decDeg=self.wcs.getCentreWCSCoords()
         signalMap=signals.makeArnaudModelSignalMap(self.params['z'], self.params['M500MSun'],
                                                    self.shape, self.wcs, beam = beamFileName,
                                                    RADeg = RADeg, decDeg = decDeg,
                                                    GNFWParams = self.params['GNFWParams'],
                                                    amplitude = amplitude,
-                                                   convolveWithBeam = True)
+                                                   convolveWithBeam = True,
+                                                   cosmoModel=cosmoModel)
 
         return signalMap
 
@@ -1259,14 +1264,15 @@ class BattagliaModelFilter(MapFilter):
 
     """
     
-    def makeSignalTemplateMap(self, beamFileName, amplitude = None):
+    def makeSignalTemplateMap(self, beamFileName, amplitude = None, cosmoModel=None):
         RADeg, decDeg=self.wcs.getCentreWCSCoords()
         signalMap=signals.makeBattagliaModelSignalMap(self.params['z'], self.params['M500MSun'],
                                                    self.shape, self.wcs, beam = beamFileName,
                                                    RADeg = RADeg, decDeg = decDeg,
                                                    GNFWParams = self.params['GNFWParams'],
                                                    amplitude = amplitude,
-                                                   convolveWithBeam = True)
+                                                   convolveWithBeam = True, 
+                                                   cosmoModel=None)
         
         return signalMap
     

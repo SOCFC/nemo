@@ -60,7 +60,7 @@ def filterMapsAndMakeCatalogs(config, rootOutDir = None, useCachedFilters = Fals
         for how this is applied to source-free sims that are generated on the fly.
         
     """
-    
+
     # Multi-pass pipeline, enabled with use of filterSets parameter in config file
     if config.filterSets != [] and useCachedFilters == False and useCachedFilteredMaps == False:
         # If we wanted to save results from each step, could set-up filterSet specific diagnostics dir here
@@ -76,7 +76,8 @@ def filterMapsAndMakeCatalogs(config, rootOutDir = None, useCachedFilters = Fals
                                                                                   useCachedFilters = False,
                                                                                   useCachedFilteredMaps = False,
                                                                                   writeAreaMask = writeAreaMask,
-                                                                                  writeFlagMask = writeFlagMask)
+                                                                                  writeFlagMask = writeFlagMask,
+                                                                                  cosmoModel=cosmoModel)
 
             if config.filterSetOptions[setNum]['addSiphonedFromSets'] is not None:
                 toStack=[config.filterSetOptions[setNum]['catalog']]
